@@ -1,20 +1,46 @@
 import React, {useEffect, useState} from 'react';
 import {render, Text} from 'ink';
+import SelectInput from 'ink-select-input';
 
 type Props = {
 	name: string | undefined;
 };
 
 export default function App({name = 'Stranger'}: Props) {
-	const [time, setTime] = useState(new Date());
+	const [selected, setSelected] = useState<string | null>(null);
 
-	useEffect(() => {
-		const interval = setInterval(() => {
-			setTime(new Date());
-		}, 1000);
+	const handleSelect = item => {
+		// `item` = { label: 'First', value: 'first' }
+		console.log(`You selected: ${item.label} (${item.value})`);
+	};
 
-		return () => clearInterval(interval);
-	}, []);
+	const items = [
+		{
+			label: 'First',
+			value: 'first',
+		},
+		{
+			label: 'Second',
+			value: 'second',
+		},
+		{
+			label: 'Third',
+			value: 'third',
+		},
+	];
 
-	return <Text color="green">{time.toLocaleTimeString()}</Text>;
+	return (
+		<>
+			{!selected && (
+				<SelectInput
+					items={items}
+					onSelect={item => {
+						setSelected(item.value);
+						handleSelect(item);
+					}}
+				/>
+			)}
+			{selected && <Text color="green">You selected: {selected} </Text>}
+		</>
+	);
 }
