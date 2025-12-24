@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {render, Text} from 'ink';
 import SelectInput from 'ink-select-input';
+import Table from './table.js';
 
 type Props = {
 	name: string | undefined;
@@ -12,6 +13,7 @@ export default function App({name = 'Stranger'}: Props) {
 	const handleSelect = item => {
 		// `item` = { label: 'First', value: 'first' }
 		console.log(`You selected: ${item.label} (${item.value})`);
+		setSelected(item.value);
 	};
 
 	const items = [
@@ -27,6 +29,9 @@ export default function App({name = 'Stranger'}: Props) {
 			label: 'Third',
 			value: 'third',
 		},
+		{	label: 'example/table.tsx',
+			value: 'table example',
+		},
 	];
 
 	return (
@@ -34,13 +39,11 @@ export default function App({name = 'Stranger'}: Props) {
 			{!selected && (
 				<SelectInput
 					items={items}
-					onSelect={item => {
-						setSelected(item.value);
-						handleSelect(item);
-					}}
+					onSelect={handleSelect}
 				/>
 			)}
-			{selected && <Text color="green">You selected: {selected} </Text>}
+			{selected && selected === 'table example' && <Table />}
+			{selected && selected !== 'table example' && <Text color="green">You selected: {selected} </Text>}
 		</>
 	);
 }
