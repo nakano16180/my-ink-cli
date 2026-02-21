@@ -1,33 +1,32 @@
-import React from 'react';
-import {Box, Text,} from 'ink';
+import {Box, Text} from 'ink';
 import {faker} from '@faker-js/faker';
 
-const fakeUsers = Array.from({length: 10})
-	.fill(true)
-	.map((_, index) => ({
-		id: index,
-		name: faker.internet.username(),
-		email: faker.internet.email(),
-	}));
+type User = {
+	id: number;
+	name: string;
+	email: string;
+};
 
-type props = {
-    id: number;
-    name: string;
-    email: string;
-}[];
+type Props = {
+	readonly users?: User[];
+};
 
-export default function Table({users = fakeUsers}: {users?: props}) {
+const fakeUsers: User[] = Array.from({length: 10}, (_, index) => ({
+	id: index,
+	name: faker.internet.username(),
+	email: faker.internet.email(),
+}));
+
+export default function Table({users = fakeUsers}: Props) {
 	return (
 		<Box flexDirection="column" width={80}>
 			<Box>
 				<Box width="10%">
 					<Text>ID</Text>
 				</Box>
-
 				<Box width="50%">
 					<Text>Name</Text>
 				</Box>
-
 				<Box width="40%">
 					<Text>Email</Text>
 				</Box>
@@ -38,11 +37,9 @@ export default function Table({users = fakeUsers}: {users?: props}) {
 					<Box width="10%">
 						<Text>{user.id}</Text>
 					</Box>
-
 					<Box width="50%">
 						<Text>{user.name}</Text>
 					</Box>
-
 					<Box width="40%">
 						<Text>{user.email}</Text>
 					</Box>
