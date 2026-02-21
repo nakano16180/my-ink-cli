@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import {useState} from 'react';
 import {Box, Text} from 'ink';
 import SelectInput from 'ink-select-input';
 
@@ -15,7 +15,7 @@ const items: SelectItem[] = [
 ];
 
 export default function SelectDemo() {
-	const [selected, setSelected] = useState<SelectItem | null>(null);
+	const [selected, setSelected] = useState<SelectItem | undefined>(undefined);
 
 	const handleSelect = (item: SelectItem) => {
 		setSelected(item);
@@ -27,12 +27,12 @@ export default function SelectDemo() {
 				<Text color="cyan">Select input</Text>
 			</Box>
 			{!selected && <SelectInput items={items} onSelect={handleSelect} />}
-			{selected && (
+			{selected ? (
 				<Box flexDirection="column" marginTop={1}>
 					<Text color="green">Selected: {selected.label}</Text>
 					<Text dimColor>Choose another demo with Esc to keep exploring.</Text>
 				</Box>
-			)}
+			) : null}
 		</Box>
 	);
 }

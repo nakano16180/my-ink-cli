@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import {useState} from 'react';
 import {Box, Text, useInput} from 'ink';
 import SelectInput from 'ink-select-input';
 import MultiSelectDemo from './multi-select.js';
@@ -10,11 +10,11 @@ type Props = {
 };
 
 export default function App({name = 'Stranger'}: Props) {
-	const [activeDemo, setActiveDemo] = useState<string | null>(null);
+	const [activeDemo, setActiveDemo] = useState<string | undefined>(undefined);
 
 	useInput((_, key) => {
 		if (activeDemo && key.escape) {
-			setActiveDemo(null);
+			setActiveDemo(undefined);
 		}
 	});
 
@@ -51,7 +51,9 @@ export default function App({name = 'Stranger'}: Props) {
 			{activeDemo === 'select' && <SelectDemo />}
 			{activeDemo === 'multi-select' && <MultiSelectDemo />}
 			{activeDemo === 'table' && <Table />}
-			{activeDemo && <Text dimColor>Press Esc to return to the menu.</Text>}
+			{activeDemo ? (
+				<Text dimColor>Press Esc to return to the menu.</Text>
+			) : null}
 		</Box>
 	);
 }
