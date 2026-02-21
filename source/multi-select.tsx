@@ -1,6 +1,5 @@
-import React, {useState} from 'react';
-import {Box, Text} from 'ink';
-import MultiSelect from 'ink-multi-select';
+import {useMemo, useState} from 'react';
+import {Box, Text, useInput} from 'ink';
 
 type MultiSelectItem = {
 	label: string;
@@ -16,32 +15,86 @@ const items: MultiSelectItem[] = [
 ];
 
 export default function MultiSelectDemo() {
-	const [selectedItems, setSelectedItems] = useState<MultiSelectItem[]>([]);
+	const [activeIndex, setActiveIndex] = useState(0);
+	const [selectedValues, setSelectedValues] = useState<Set<string>>(new Set());
+	const [isSubmitted, setIsSubmitted] = useState(false);
 
-	const handleSubmit = (submittedItems: MultiSelectItem[]) => {
-		setSelectedItems(submittedItems);
-	};
+	const selectedItems = useMemo(
+		() => items.filter(item => selectedValues.has(item.value)),
+		[selectedValues],
+	);
+
+	useInput((input, key) => {
+		if (isSubmitted) {
+			return;
+		}
+
+		if (key.upArrow) {
+			setActiveIndex(index => (index === 0 ? items.length - 1 : index - 1));
+			return;
+		}
+
+		if (key.downArrow) {
+			setActiveIndex(index => (index === items.length - 1 ? 0 : index + 1));
+			return;
+		}
+
+		if (input === ' ') {
+			const activeItem = items[activeIndex];
+			if (!activeItem) {
+				return;
+			}
+
+			setSelectedValues(values => {
+				const nextValues = new Set(values);
+				if (nextValues.has(activeItem.value)) {
+					nextValues.delete(activeItem.value);
+				} else {
+					nextValues.add(activeItem.value);
+				}
+
+				return nextValues;
+			});
+			return;
+		}
+
+		if (key.return) {
+			setIsSubmitted(true);
+		}
+	});
 
 	return (
 		<Box flexDirection="column">
 			<Box marginBottom={1}>
 				<Text color="cyan">MultiSelect input</Text>
 			</Box>
-			{selectedItems.length === 0 && (
+			{!isSubmitted && (
 				<Box flexDirection="column">
-					<Text dimColor>Use space to toggle items, then press Enter.</Text>
-					<MultiSelect items={items} onSubmit={handleSubmit} />
+					<Text dimColor>
+						Use ↑/↓ to move, Space to toggle, Enter to submit.
+					</Text>
+					{items.map((item, index) => {
+						const isActive = index === activeIndex;
+						const isSelected = selectedValues.has(item.value);
+
+						return (
+							<Text key={item.value} color={isActive ? 'green' : undefined}>
+								{isActive ? '❯' : ' '} [{isSelected ? 'x' : ' '}] {item.label}
+							</Text>
+						);
+					})}
 				</Box>
 			)}
-			{selectedItems.length > 0 && (
+			{isSubmitted ? (
 				<Box flexDirection="column" marginTop={1}>
 					<Text color="green">Selected topics:</Text>
+					{selectedItems.length === 0 && <Text dimColor>(none)</Text>}
 					{selectedItems.map(item => (
 						<Text key={item.value}>• {item.label}</Text>
 					))}
 					<Text dimColor>Press Esc to return to the menu.</Text>
 				</Box>
-			)}
+			) : null}
 		</Box>
 	);
 }
