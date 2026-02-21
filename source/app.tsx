@@ -1,37 +1,57 @@
-import {useState} from 'react';
-import {Text} from 'ink';
+import React, {useState} from 'react';
+import {Box, Text, useInput} from 'ink';
 import SelectInput from 'ink-select-input';
+import MultiSelectDemo from './multi-select.js';
+import SelectDemo from './select.js';
 import Table from './table.js';
 
 type Props = {
 	readonly name?: string;
 };
 
-const items = [
-	{label: 'First', value: 'first'},
-	{label: 'Second', value: 'second'},
-	{label: 'Third', value: 'third'},
-	{label: 'example/table.tsx', value: 'table example'},
-];
-
 export default function App({name = 'Stranger'}: Props) {
-	const [selected, setSelected] = useState<string>();
+	const [activeDemo, setActiveDemo] = useState<string | null>(null);
 
-	const handleSelect = (item: {value: string}) => {
-		setSelected(item.value);
+	useInput((_, key) => {
+		if (activeDemo && key.escape) {
+			setActiveDemo(null);
+		}
+	});
+
+	const handleSelect = (item: {label: string; value: string}) => {
+		setActiveDemo(item.value);
 	};
 
-	if (!selected) {
-		return <SelectInput items={items} onSelect={handleSelect} />;
-	}
-
-	if (selected === 'table example') {
-		return <Table />;
-	}
+	const items = [
+		{
+			label: 'Select input',
+			value: 'select',
+		},
+		{
+			label: 'MultiSelect input',
+			value: 'multi-select',
+		},
+		{
+			label: 'Table example',
+			value: 'table',
+		},
+	];
 
 	return (
-		<Text color="green">
-			{name} selected: {selected}
-		</Text>
+		<Box flexDirection="column">
+			<Box marginBottom={1}>
+				<Text color="cyan">Ink UI demo menu</Text>
+			</Box>
+			{!activeDemo && (
+				<Box flexDirection="column" marginBottom={1}>
+					<Text dimColor>{name}, choose a demo to preview:</Text>
+					<SelectInput items={items} onSelect={handleSelect} />
+				</Box>
+			)}
+			{activeDemo === 'select' && <SelectDemo />}
+			{activeDemo === 'multi-select' && <MultiSelectDemo />}
+			{activeDemo === 'table' && <Table />}
+			{activeDemo && <Text dimColor>Press Esc to return to the menu.</Text>}
+		</Box>
 	);
 }

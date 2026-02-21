@@ -16,7 +16,8 @@
 		"dist"
 	],
 	"dependencies": {
-		"ink": "^6.8.0",
+		"ink": "^6.5.1",
+		"ink-multi-select": "^2.0.0",
 		"ink-select-input": "^6.2.0",
 		"ink-table": "^3.1.0",
 		"meow": "^14.1.0",
