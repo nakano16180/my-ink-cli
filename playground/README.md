@@ -16,3 +16,7 @@ npm run playground:build
 ```
 
 `vite.config.ts` では `base: './'` を指定しているため、GitHub Pages のサブパス配下でも配信しやすい構成です。
+
+## 運用メモ
+
+トラブルシュートの基準表は `playground/AGENTS.md` を参照してください。
