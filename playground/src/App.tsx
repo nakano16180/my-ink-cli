@@ -19,6 +19,38 @@ const getTerminalSize = (terminal: Terminal) => ({
 	rows: Math.max(terminal.rows, 24),
 });
 
+type CliLaunchMode = {
+	label: string;
+	command: string;
+	args: string[];
+	withTerminal: boolean;
+	withStdinWriter: boolean;
+};
+
+const cliLaunchModes: CliLaunchMode[] = [
+	{
+		label: 'node + terminal + stdinWriter',
+		command: 'node',
+		args: ['ink-cli.mjs'],
+		withTerminal: true,
+		withStdinWriter: true,
+	},
+	{
+		label: 'node + no terminal + stdinWriter',
+		command: 'node',
+		args: ['ink-cli.mjs'],
+		withTerminal: false,
+		withStdinWriter: true,
+	},
+	{
+		label: 'node + terminal + no stdinWriter',
+		command: 'node',
+		args: ['ink-cli.mjs'],
+		withTerminal: true,
+		withStdinWriter: false,
+	},
+];
+
 const getWebContainer = async () => {
 	if (!webContainerPromise) {
 		webContainerPromise = WebContainer.boot();
@@ -179,28 +211,48 @@ export default function App() {
 			setStatus('Running Ink CLI. Try arrow keys + Enter in terminal below.');
 			activeTerminal.writeln('\r\n=== Starting Ink CLI ===');
 
-			const process = await webContainer.spawn(
-				'jsh',
-				['-c', 'node ink-cli.mjs'],
-				{
-					terminal: getTerminalSize(activeTerminal),
-				},
-			);
-			const writer = process.input.getWriter();
-			const onDataDisposable = activeTerminal.onData(data => {
-				void writer.write(data);
-			});
-			cleanupInput = () => {
-				onDataDisposable.dispose();
-				writer.releaseLock();
-			};
+			let lastExitCode: number | undefined;
 
-			void process.output.pipeTo(terminalStream(activeTerminal));
-			const exitCode = await process.exit;
-			cleanupInput();
-			cleanupInput = undefined;
+			for (const mode of cliLaunchModes) {
+				activeTerminal.writeln(`\r\n[launch] ${mode.label}`);
 
-			setStatus(`CLI exited with code ${exitCode}. Reload to restart.`);
+				const process = await webContainer.spawn(mode.command, mode.args, {
+					terminal: mode.withTerminal ? getTerminalSize(activeTerminal) : undefined,
+				});
+
+				if (mode.withStdinWriter) {
+					const writer = process.input.getWriter();
+					const onDataDisposable = activeTerminal.onData(data => {
+						void writer.write(data);
+					});
+					cleanupInput = () => {
+						onDataDisposable.dispose();
+						writer.releaseLock();
+					};
+				} else {
+					cleanupInput = undefined;
+				}
+
+				void process.output.pipeTo(terminalStream(activeTerminal));
+				const exitCode = await process.exit;
+				cleanupInput?.();
+				cleanupInput = undefined;
+				lastExitCode = exitCode;
+
+				if (exitCode === 0) {
+					setStatus('Ink CLI completed normally. Reload to restart.');
+					return;
+				}
+
+				if (exitCode !== 13) {
+					setStatus(`CLI exited with code ${exitCode}. Reload to restart.`);
+					return;
+				}
+
+				activeTerminal.writeln('[warn] CLI exited with code 13. Trying fallback launch mode...');
+			}
+
+			setStatus(`CLI exited with code ${lastExitCode ?? 'unknown'}. Reload to restart.`);
 		};
 
 		void boot().catch(error => {
