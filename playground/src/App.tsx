@@ -7,22 +7,6 @@ import './App.css';
 let webContainerPromise: Promise<WebContainer> | undefined;
 let sandboxReadyPromise: Promise<void> | undefined;
 
-type SpawnCase = {
-	name: string;
-	command: string;
-	args: string[];
-	script: 'ink' | 'minimal';
-	withTerminal: boolean;
-	withInputForwarding: boolean;
-};
-
-type CaseResult = {
-	name: string;
-	exitCode: number;
-	lastLog: string;
-	inputAvailable: 'yes' | 'no';
-};
-
 const terminalStream = (terminal: Terminal) =>
 	new WritableStream({
 		write(data) {
@@ -52,8 +36,8 @@ const fileTree = {
 					private: true,
 					type: 'module',
 					dependencies: {
-						ink: '^5.2.1',
-						react: '^19.1.1',
+						ink: '^6.5.1',
+						react: '^19.2.0',
 					},
 				},
 				null,
@@ -65,7 +49,7 @@ const fileTree = {
 		file: {
 			contents: `
 import React from 'react';
-import {render, Text, useApp, useInput} from 'ink';
+import {render, Box, Text, useInput} from 'ink';
 
 const h = React.createElement;
 
@@ -75,158 +59,63 @@ if (typeof process.stdin.unref !== 'function') process.stdin.unref = () => {};
 process.stdin.isTTY = true;
 process.stdin.resume();
 
+const items = ['Ink', 'React', 'Node.js', 'TypeScript'];
+
 function App() {
-	const {exit} = useApp();
+	const [selectedIndex, setSelectedIndex] = React.useState(0);
+	const [submitted, setSubmitted] = React.useState(false);
 
 	useInput((input, key) => {
+		if (submitted) {
+			if (input === 'q') {
+				process.exit(0);
+			}
+
+			return;
+		}
+
 		if (key.upArrow) {
-			console.log('INPUT:UP');
+			setSelectedIndex(index => (index === 0 ? items.length - 1 : index - 1));
 		}
+
 		if (key.downArrow) {
-			console.log('INPUT:DOWN');
+			setSelectedIndex(index => (index === items.length - 1 ? 0 : index + 1));
 		}
+
 		if (key.return) {
-			console.log('INPUT:ENTER');
-			exit();
-		}
-		if (input === 'q') {
-			console.log('INPUT:Q');
-			exit();
+			setSubmitted(true);
 		}
 	});
 
-	React.useEffect(() => {
-		console.log('READY:INK');
-		const timer = setTimeout(() => {
-			console.log('AUTO_EXIT:INK');
-			exit();
-		}, 1200);
-		return () => clearTimeout(timer);
-	}, [exit]);
+	if (submitted) {
+		return h(Box, {flexDirection: 'column'}, [
+			h(Text, {key: 'title', color: 'green'}, 'Selected: ' + items[selectedIndex]),
+			h(Text, {key: 'hint', dimColor: true}, 'Press q to quit.'),
+		]);
+	}
 
-	return h(Text, {color: 'green'}, 'Ink comparison CLI');
+	return h(Box, {flexDirection: 'column'}, [
+		h(Text, {key: 'title', color: 'cyan'}, 'WebContainer Ink interactive menu'),
+		h(Text, {key: 'hint', dimColor: true}, 'Use ↑/↓ then Enter.'),
+		...items.map((item, index) =>
+			h(
+				Text,
+				{key: item, color: index === selectedIndex ? 'green' : undefined},
+				(index === selectedIndex ? '❯ ' : '  ') + item,
+			),
+		),
+	]);
 }
 
 render(h(App));
 `.trim(),
 		},
 	},
-	'minimal-cli.mjs': {
-		file: {
-			contents: `
-if (typeof process.stdin.setRawMode === 'function') {
-	process.stdin.setRawMode(true);
-}
-
-process.stdin.resume();
-console.log('READY:MINIMAL');
-
-process.stdin.on('data', chunk => {
-	const text = chunk.toString('utf8');
-	if (text.includes('\\u001b[A')) {
-		console.log('INPUT:UP');
-	}
-	if (text.includes('\\u001b[B')) {
-		console.log('INPUT:DOWN');
-	}
-	if (text.includes('\\r')) {
-		console.log('INPUT:ENTER');
-		process.exit(0);
-	}
-});
-
-setTimeout(() => {
-	console.log('AUTO_EXIT:MINIMAL');
-	process.exit(0);
-}, 1200);
-`.trim(),
-		},
-	},
 } as const;
-
-const spawnCases: SpawnCase[] = [
-	{
-		name: '1) jsh -c node cli.mjs / terminal: yes / stdinWriter: yes / Ink',
-		command: 'jsh',
-		args: ['-c', 'node ink-cli.mjs'],
-		script: 'ink',
-		withTerminal: true,
-		withInputForwarding: true,
-	},
-	{
-		name: '2) node cli.mjs / terminal: yes / stdinWriter: yes / Ink',
-		command: 'node',
-		args: ['ink-cli.mjs'],
-		script: 'ink',
-		withTerminal: true,
-		withInputForwarding: true,
-	},
-	{
-		name: '3) node cli.mjs / terminal: no / stdinWriter: yes / Ink',
-		command: 'node',
-		args: ['ink-cli.mjs'],
-		script: 'ink',
-		withTerminal: false,
-		withInputForwarding: true,
-	},
-	{
-		name: '4) node cli.mjs / terminal: yes / stdinWriter: no / Ink',
-		command: 'node',
-		args: ['ink-cli.mjs'],
-		script: 'ink',
-		withTerminal: true,
-		withInputForwarding: false,
-	},
-	{
-		name: '5) jsh -c node cli.mjs / terminal: yes / stdinWriter: yes / Minimal',
-		command: 'jsh',
-		args: ['-c', 'node minimal-cli.mjs'],
-		script: 'minimal',
-		withTerminal: true,
-		withInputForwarding: true,
-	},
-	{
-		name: '6) node cli.mjs / terminal: yes / stdinWriter: yes / Minimal',
-		command: 'node',
-		args: ['minimal-cli.mjs'],
-		script: 'minimal',
-		withTerminal: true,
-		withInputForwarding: true,
-	},
-	{
-		name: '7) node cli.mjs / terminal: no / stdinWriter: yes / Minimal',
-		command: 'node',
-		args: ['minimal-cli.mjs'],
-		script: 'minimal',
-		withTerminal: false,
-		withInputForwarding: true,
-	},
-	{
-		name: '8) node cli.mjs / terminal: yes / stdinWriter: no / Minimal',
-		command: 'node',
-		args: ['minimal-cli.mjs'],
-		script: 'minimal',
-		withTerminal: true,
-		withInputForwarding: false,
-	},
-];
-
-const extractLastLog = (output: string) => {
-	const lines = output
-		.split(/\r?\n/)
-		.map(line => line.trim())
-		.filter(Boolean);
-
-	return lines.at(-1) ?? '(no output)';
-};
-
-const extractInputAvailable = (output: string) =>
-	output.includes('INPUT:UP') || output.includes('INPUT:DOWN') ? 'yes' : 'no';
 
 export default function App() {
 	const terminalElementRef = useRef<HTMLDivElement | null>(null);
 	const [status, setStatus] = useState('Initializing WebContainer...');
-	const [results, setResults] = useState<CaseResult[]>([]);
 
 	useEffect(() => {
 		if (!terminalElementRef.current) {
@@ -235,6 +124,7 @@ export default function App() {
 
 		let disposed = false;
 		let terminal: Terminal | null = null;
+		let cleanupInput: (() => void) | undefined;
 
 		const boot = async () => {
 			terminal = new Terminal({
@@ -249,7 +139,7 @@ export default function App() {
 			});
 			terminal.open(terminalElementRef.current!);
 			const activeTerminal = terminal;
-			terminal.writeln('Booting browser sandbox...');
+			activeTerminal.writeln('Booting browser sandbox...');
 
 			const webContainer = await getWebContainer();
 			if (disposed) {
@@ -258,15 +148,18 @@ export default function App() {
 
 			if (!sandboxReadyPromise) {
 				sandboxReadyPromise = (async () => {
-					setStatus('Mounting CLI filesystem...');
+					setStatus('Mounting Ink CLI files...');
 					await webContainer.mount(fileTree);
 
-					setStatus('Preparing sandbox dependencies...');
-					await webContainer.fs.rm('node_modules', {recursive: true, force: true});
+					setStatus('Preparing dependencies...');
+					await webContainer.fs.rm('node_modules', {
+						recursive: true,
+						force: true,
+					});
 					await webContainer.fs.rm('package-lock.json', {force: true});
 
 					setStatus('Installing dependencies in sandbox...');
-					terminal.writeln('Installing: react ink');
+					activeTerminal.writeln('Installing: react ink');
 					const installProcess = await webContainer.spawn('npm', ['install'], {
 						terminal: getTerminalSize(activeTerminal),
 					});
@@ -283,73 +176,43 @@ export default function App() {
 				return;
 			}
 
-			const caseResults: CaseResult[] = [];
+			setStatus('Running Ink CLI. Try arrow keys + Enter in terminal below.');
+			activeTerminal.writeln('\r\n=== Starting Ink CLI ===');
 
-			for (const spawnCase of spawnCases) {
-				if (disposed) {
-					return;
-				}
+			const process = await webContainer.spawn(
+				'jsh',
+				['-c', 'node ink-cli.mjs'],
+				{
+					terminal: getTerminalSize(activeTerminal),
+				},
+			);
+			const writer = process.input.getWriter();
+			const onDataDisposable = activeTerminal.onData(data => {
+				void writer.write(data);
+			});
+			cleanupInput = () => {
+				onDataDisposable.dispose();
+				writer.releaseLock();
+			};
 
-				setStatus(`Running ${spawnCase.name}`);
-				terminal.writeln(`\r\n=== ${spawnCase.name} ===`);
+			void process.output.pipeTo(terminalStream(activeTerminal));
+			const exitCode = await process.exit;
+			cleanupInput();
+			cleanupInput = undefined;
 
-				const spawnOptions = spawnCase.withTerminal
-					? {terminal: getTerminalSize(activeTerminal)}
-					: undefined;
-				const process = await webContainer.spawn(spawnCase.command, spawnCase.args, spawnOptions);
-				let output = '';
-
-				const outputTask = (async () => {
-					const reader = process.output.getReader();
-					const decoder = new TextDecoder();
-					try {
-						while (true) {
-							const {value, done} = await reader.read();
-							if (done) {
-								break;
-							}
-							const chunk = typeof value === 'string' ? value : decoder.decode(value, {stream: true});
-							output += chunk;
-							activeTerminal.write(chunk);
-						}
-					} finally {
-						reader.releaseLock();
-					}
-				})();
-
-				let stdinWriter: WritableStreamDefaultWriter<string> | null = null;
-				if (spawnCase.withInputForwarding) {
-					stdinWriter = process.input.getWriter();
-					await new Promise(resolve => window.setTimeout(resolve, 250));
-					await stdinWriter.write('\u001b[A');
-					await stdinWriter.write('\u001b[B');
-					await stdinWriter.write('\r');
-					stdinWriter.releaseLock();
-				}
-
-				const exitCode = await process.exit;
-				await outputTask;
-				const result = {
-					name: spawnCase.name,
-					exitCode,
-					lastLog: extractLastLog(output),
-					inputAvailable: extractInputAvailable(output),
-				} satisfies CaseResult;
-				caseResults.push(result);
-				terminal.writeln(`[summary] exit=${result.exitCode} lastLog=${result.lastLog} input=${result.inputAvailable}`);
-			}
-
-			setResults(caseResults);
-			setStatus('Comparison completed.');
+			setStatus(`CLI exited with code ${exitCode}. Reload to restart.`);
 		};
 
 		void boot().catch(error => {
-			setStatus('WebContainer comparison failed');
-			terminal?.writeln(`\r\nError: ${error instanceof Error ? error.message : String(error)}`);
+			setStatus('WebContainer run failed');
+			terminal?.writeln(
+				`\r\nError: ${error instanceof Error ? error.message : String(error)}`,
+			);
 		});
 
 		return () => {
 			disposed = true;
+			cleanupInput?.();
 			terminal?.dispose();
 		};
 	}, []);
@@ -357,13 +220,8 @@ export default function App() {
 	return (
 		<main className="app">
 			<header>
-				<h1>WebContainer spawn comparison</h1>
+				<h1>WebContainer Ink playground</h1>
 				<p>{status}</p>
-				{results.length > 0 ? (
-					<pre>
-						{['case | exit code | last log | input', '---|---:|---|---', ...results.map(result => `${result.name} | ${result.exitCode} | ${result.lastLog} | ${result.inputAvailable}`)].join('\n')}
-					</pre>
-				) : null}
 			</header>
 			<div className="terminal" ref={terminalElementRef} />
 		</main>
