@@ -23,3 +23,13 @@ $ my-ink-cli --help
     $ my-ink-cli --name=Jane
     Hello, Jane
 ```
+
+## Playground (Vite + React + TypeScript)
+
+GitHub Pages で公開予定の playground を `playground/` に追加しています。
+
+```bash
+npm install --prefix playground
+npm run playground:dev
+npm run playground:build
+```
