@@ -63,31 +63,6 @@ const spawnCommand = async (
 	return {process, outputTask};
 };
 
-type CliLaunchMode = {
-	label: string;
-	command: string;
-	args: string[];
-	withTerminal: boolean;
-	withStdinWriter: boolean;
-};
-
-const cliLaunchModes: CliLaunchMode[] = [
-	{
-		label: 'jsh -c node + terminal + stdinWriter',
-		command: 'jsh',
-		args: ['-c', 'node ink-cli.mjs'],
-		withTerminal: true,
-		withStdinWriter: true,
-	},
-	{
-		label: 'node + terminal + stdinWriter',
-		command: 'node',
-		args: ['ink-cli.mjs'],
-		withTerminal: true,
-		withStdinWriter: true,
-	},
-];
-
 const getWebContainer = async () => {
 	if (!webContainerPromise) {
 		webContainerPromise = WebContainer.boot();
@@ -213,7 +188,6 @@ export default function App() {
 					setStatus('Mounting Ink CLI files...');
 					await webContainer.mount(fileTree);
 
-					setStatus('Preparing dependencies...');
 					await webContainer.fs.rm('node_modules', {
 						recursive: true,
 						force: true,
@@ -242,48 +216,26 @@ export default function App() {
 				return;
 			}
 
-			setStatus('Running Ink CLI. Try arrow keys + Enter in terminal below.');
-			activeTerminal.writeln('\r\n=== Starting Ink CLI ===');
-
-			const failedLaunches: Array<{label: string; exitCode: number}> = [];
-
-			for (const [index, mode] of cliLaunchModes.entries()) {
-				activeTerminal.writeln(`\r\n[launch] ${mode.label}`);
-				const {process, outputTask} = await spawnCommand(
-					webContainer,
-					activeTerminal,
-					mode.command,
-					mode.args,
-					mode.withTerminal,
-				);
-				cleanupInput = mode.withStdinWriter
-					? wireTerminalInput(process.input, activeTerminal)
-					: undefined;
-				const exitCode = await process.exit;
-				await outputTask;
-				cleanupInput?.();
-				cleanupInput = undefined;
-
-				if (exitCode === 0) {
-					setStatus('Ink CLI completed normally. Reload to restart.');
-					return;
-				}
-
-				failedLaunches.push({label: mode.label, exitCode});
-				const hasNextMode = index < cliLaunchModes.length - 1;
-				if (hasNextMode) {
-					activeTerminal.writeln(
-						`[warn] CLI exited with code ${exitCode}. Trying fallback launch mode...`,
-					);
-				}
-			}
-
-			const failureSummary = failedLaunches
-				.map(failure => `${failure.label}: ${failure.exitCode}`)
-				.join(' | ');
-			setStatus(
-				`CLI failed in all launch modes (${failureSummary || 'unknown'}). Reload to restart.`,
+			setStatus('Starting interactive shell...');
+			activeTerminal.writeln('\r\nStarting interactive shell...');
+			const {process: shellProcess, outputTask: shellOutputTask} = await spawnCommand(
+				webContainer,
+				activeTerminal,
+				'jsh',
+				[],
+				true,
 			);
+			cleanupInput = wireTerminalInput(shellProcess.input, activeTerminal);
+			setStatus('Shell ready. Type: node ink-cli.mjs');
+			activeTerminal.writeln('Shell ready. Type: node ink-cli.mjs');
+
+			const shellExitCode = await shellProcess.exit;
+			await shellOutputTask;
+			cleanupInput?.();
+			cleanupInput = undefined;
+			if (!disposed) {
+				setStatus(`Shell exited with code ${shellExitCode}. Reload to restart.`);
+			}
 		};
 
 		void boot().catch(error => {
