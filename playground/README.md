@@ -15,6 +15,20 @@ npm run playground:dev
 npm run playground:build
 ```
 
+## E2E テスト (Playwright)
+
+初回のみブラウザをインストール:
+
+```bash
+npm --prefix playground run test:e2e:install
+```
+
+テスト実行:
+
+```bash
+npm --prefix playground run test:e2e
+```
+
 `vite.config.ts` では `base: './'` を指定しているため、GitHub Pages のサブパス配下でも配信しやすい構成です。
 
 ## 運用メモ
