@@ -1,0 +1,33 @@
+.app {
+	min-height: 100dvh;
+	padding: 1.5rem;
+	background: radial-gradient(circle at top, #0f172a 0%, #020617 75%);
+	color: #e2e8f0;
+	font-family: Inter, system-ui, sans-serif;
+	display: grid;
+	grid-template-rows: auto 1fr;
+	gap: 1rem;
+}
+
+h1 {
+	margin: 0;
+	font-size: 1.35rem;
+}
+
+p {
+	margin: 0.4rem 0 0;
+	color: #93c5fd;
+}
+
+.terminal {
+	border: 1px solid #1e293b;
+	border-radius: 12px;
+	overflow: hidden;
+	padding: 0.75rem;
+	background: #020617;
+	box-shadow: 0 20px 35px rgba(2, 6, 23, 0.5);
+}
+
+.terminal .xterm {
+	height: min(70vh, 640px);
+}
